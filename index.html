@@ -555,7 +555,7 @@ body.locked .toast{z-index:220}
     <button data-c="italic" title="기울임 (Ctrl+I)"><i>I</i></button>
     <button data-c="underline" title="밑줄 (Ctrl+U)"><u>U</u></button>
     <button data-c="strike" title="취소선"><s>S</s></button>
-    <button data-c="mark" title="형광펜">🖍 형광펜</button>
+    <button data-c="mark" title="형광펜 (칠한 곳을 다시 누르면 지워져요)">🖍 형광펜</button>
     <button data-c="color" title="글자색"><span style="border-bottom:3px solid #e0546b">A</span> 글자색</button>
     <span class="sep"></span>
     <button data-c="ul" title="글머리 목록">• 목록</button>
@@ -567,6 +567,8 @@ body.locked .toast{z-index:220}
     <button data-c="table" title="표 넣기">▦ 표</button>
     <button data-c="row" title="커서가 있는 표에 행 추가">＋ 행</button>
     <button data-c="rowdel" title="커서가 있는 표의 줄 지우기">－ 행</button>
+    <button data-c="col" title="커서가 있는 칸 오른쪽에 열 추가">＋ 열</button>
+    <button data-c="coldel" title="커서가 있는 열 지우기">－ 열</button>
     <button data-c="hr" title="구분선">― 구분선</button>
     <span class="sep"></span>
     <button data-c="photo" title="사진·그림 넣기 (캡처는 Ctrl+V로 바로 붙여넣기)">🖼 사진</button>
@@ -1596,10 +1598,96 @@ function addWeek(btn) {
   last.after(nw);
   scheduleSave(); toast(`${wks.length + 1}주차를 추가했어요`);
 }
+/* 형광펜: 칠하기 / 이미 칠한 곳이면 지우기 */
+const INLINE_TAGS = /^(SPAN|MARK|FONT|B|STRONG|I|EM|U|S|STRIKE|DEL|A|SMALL|SUB|SUP|CODE)$/;
+const hasBg = n => { const b = n.style && n.style.backgroundColor; return !!b && !/^(transparent|initial|inherit|unset)$/.test(b) && !/rgba\(\s*0,\s*0,\s*0,\s*0\s*\)/.test(b); };
+function hlOf(node) {
+  for (let n = node && (node.nodeType === 1 ? node : node.parentElement); n && n !== paper; n = n.parentElement) {
+    if (!INLINE_TAGS.test(n.tagName)) return null;
+    if (n.tagName === 'MARK' || hasBg(n)) return n;
+  }
+  return null;
+}
+function unwrapEl(e) { const p = e.parentNode; while (e.firstChild) p.insertBefore(e.firstChild, e); e.remove(); }
+function clearHl(e) {
+  if (!e || !e.isConnected) return;
+  if (e.tagName === 'MARK') { unwrapEl(e); return; }
+  e.style.backgroundColor = '';
+  if (!e.getAttribute('style')) e.removeAttribute('style');
+  if (e.tagName === 'SPAN' && !e.attributes.length) unwrapEl(e);
+}
+function textsIn(r) {
+  const root = r.commonAncestorContainer.nodeType === 1 ? r.commonAncestorContainer : r.commonAncestorContainer.parentNode;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: t => r.intersectsNode(t) && t.nodeValue.trim() ? 1 : 2 });
+  const out = []; while (w.nextNode()) out.push(w.currentNode); return out;
+}
+function toggleMark() {
+  const sel = getSelection(); if (!sel.rangeCount) return;
+  const r = sel.getRangeAt(0);
+  if (r.collapsed) {
+    const hl = hlOf(r.startContainer);
+    if (hl) { clearHl(hl); toast('형광펜을 지웠어요'); return; }
+    ex('styleWithCSS', true); ex('hiliteColor', '#fff1a8'); ex('styleWithCSS', false); return;
+  }
+  const texts = textsIn(r);
+  if (texts.length && texts.every(t => hlOf(t))) {
+    const hls = new Set(texts.map(hlOf));
+    ex('styleWithCSS', true); ex('hiliteColor', 'transparent'); ex('styleWithCSS', false);
+    // 투명으로 바뀐 조각과, 선택 안에 완전히 들어간 형광펜 정리
+    for (const e of hls) { if (e.isConnected && r.intersectsNode(e)) { const er = document.createRange(); er.selectNodeContents(e); if (r.compareBoundaryPoints(Range.START_TO_START, er) <= 0 && r.compareBoundaryPoints(Range.END_TO_END, er) >= 0) clearHl(e); } }
+    paper.querySelectorAll('[style*="background"]').forEach(e => { if (INLINE_TAGS.test(e.tagName) && !hasBg(e) && /transparent|rgba\(\s*0,\s*0,\s*0,\s*0/.test(e.style.backgroundColor)) clearHl(e); });
+    toast('형광펜을 지웠어요');
+    return;
+  }
+  ex('styleWithCSS', true); ex('hiliteColor', '#fff1a8'); ex('styleWithCSS', false);
+}
+
+/* 표 열 추가 / 지우기 (colspan 고려) */
+function cellAtCol(tr, col) {
+  let x = 0;
+  for (const c of tr.cells) { const span = c.colSpan || 1; if (col < x + span) return { cell: c, start: x, span }; x += span; }
+  return null;
+}
+function colEdit(add) {
+  const cell = closestInPaper('td,th');
+  if (!cell) { toast(add ? '열을 추가할 표 안에 커서를 두세요' : '지울 열에 커서를 두세요'); return; }
+  const tb = cell.closest('table');
+  if (tb.classList.contains('mandal') || tb.classList.contains('cal')) { toast('이 표는 열을 바꿀 수 없어요'); return; }
+  const rows = [...tb.rows];
+  let col = 0; for (const c of cell.parentElement.cells) { if (c === cell) break; col += c.colSpan || 1; }
+  const myEnd = col + (cell.colSpan || 1) - 1;
+  if (add) {
+    for (const tr of rows) {
+      const hit = cellAtCol(tr, myEnd);
+      if (!hit) { tr.append(el(tr.parentElement.tagName === 'THEAD' ? 'th' : 'td')); tr.lastChild.append(el('br')); continue; }
+      if (hit.start + hit.span - 1 > myEnd) { hit.cell.colSpan = hit.span + 1; continue; }
+      const nc = document.createElement(hit.cell.tagName === 'TH' && tr.parentElement.tagName === 'THEAD' ? 'th' : hit.cell.tagName.toLowerCase());
+      nc.append(el('br'));
+      hit.cell.after(nc);
+    }
+    tb.querySelectorAll('th[style*="width"]').forEach(th => th.style.width = '');
+    const first = cellAtCol(cell.parentElement, myEnd + 1);
+    if (first) { const rg = document.createRange(); rg.setStart(first.cell, 0); rg.collapse(true); const s = getSelection(); s.removeAllRanges(); s.addRange(rg); }
+    toast('열을 추가했어요');
+  } else {
+    const total = Math.max(...rows.map(tr => [...tr.cells].reduce((a, c) => a + (c.colSpan || 1), 0)));
+    if (total <= 1) { tb.remove(); toast('표를 지웠어요'); return; }
+    for (const tr of rows) {
+      const hit = cellAtCol(tr, col); if (!hit) continue;
+      if (hit.span > 1) hit.cell.colSpan = hit.span - 1; else hit.cell.remove();
+    }
+    tb.querySelectorAll('th[style*="width"]').forEach(th => th.style.width = '');
+    const near = cellAtCol(cell.parentElement && cell.parentElement.isConnected ? cell.parentElement : rows[0], Math.max(0, col - 1)) || cellAtCol(rows[0], 0);
+    if (near) { const rg = document.createRange(); rg.selectNodeContents(near.cell); rg.collapse(false); const s = getSelection(); s.removeAllRanges(); s.addRange(rg); }
+    toast('열을 지웠어요');
+  }
+}
+
 const CMD = {
   h1: () => ex('formatBlock', 'H1'), h2: () => ex('formatBlock', 'H2'), p: () => ex('formatBlock', 'P'),
   bold: () => ex('bold'), italic: () => ex('italic'), underline: () => ex('underline'), strike: () => ex('strikeThrough'),
-  mark: () => { ex('styleWithCSS', true); ex('hiliteColor', '#fff1a8'); ex('styleWithCSS', false); },
+  mark: toggleMark,
+  col: () => colEdit(true), coldel: () => colEdit(false),
   ul: () => ex('insertUnorderedList'), ol: () => ex('insertOrderedList'),
   check: () => {
     let ul = closestInPaper('ul');
@@ -1667,8 +1755,9 @@ const pct = px => (px / (paper.clientWidth || 794) * 100).toFixed(2) + '%';
 const FINE = matchMedia('(pointer:fine)').matches;
 const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const IS_STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-const APP_VERSION = '2.3.1';
+const APP_VERSION = '2.4';
 const CHANGELOG = [
+  { v: '2.4', d: '11월 9일', items: ['🖍 형광펜 지우기: 칠한 곳에 커서를 두거나 선택하고 형광펜을 한 번 더 누르면 지워져요', '▦ 표 열 추가·삭제: 툴바의 「＋ 열」 「－ 열」로 커서가 있는 칸 기준으로 열을 늘리고 지울 수 있어요'] },
   { v: '2.3', d: '11월 9일', items: ['🧹 메뉴 정리: 「🛟 사용자 지원」과 「⚙️ 설정」 두 개로 묶었어요'] },
   { v: '2.2', d: '11월 9일', items: ['📲 기기 연결 보완: 집 공유기·LTE에서도 연결되도록 중계 서버 추가', '🔒 연결할 때 두 기기에 같은 그림 3개가 뜨면 「맞아요」를 눌러 확인해요'] },
   { v: '2.1', d: '11월 9일', items: ['📲 다른 기기와 맞추기: 한쪽에 뜬 숫자 6자리를 다른 쪽에 입력하면 메모·사진이 서로 합쳐져요 (로그인·파일 필요 없음)'] },
