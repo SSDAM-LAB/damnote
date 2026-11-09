@@ -26,4 +26,4 @@
 - **아이폰·아이패드**: Safari 공유 버튼 → 「홈 화면에 추가」 (아이폰은 홈 화면에 추가해서 써야 메모가 오래 안전하게 보관돼요)
 
 ---
-made by 🐰 [SSDAM-LAB](https://github.com/ssdam-lab)
+made by 🐰 [SSDAM-LAB](https://ssdam-lab.github.io/)
