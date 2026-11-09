@@ -2831,6 +2831,7 @@ function supportSheet() {
   menuSheet('🛟 사용자 지원', null, [
     { icon: '🎉', title: '업데이트 소식', desc: `지금 버전 v${APP_VERSION} · 바뀐 점 보기`, badge: unseen ? 'NEW' : null, go: () => { S.meta.seenVersion = APP_VERSION; saveMeta(); renderLib(); changelogDialog(); } },
     { icon: '❓', title: '사용 안내', desc: '처음 화면 안내 다시 보기 · 사용법 메모 받기', go: onboarding },
+    { icon: '📖', title: '사용 설명서', desc: '쓰담랩 홈페이지에서 자세히 보기', go: () => window.open('https://ssdam-lab.github.io/#/guide', '_blank', 'noopener') },
     { icon: '💬', title: '의견 보내기', desc: '불편한 점 · 원하는 기능 · 오류 신고', go: feedbackDialog },
   ], 'made by 🐰 SSDAM-LAB');
 }
