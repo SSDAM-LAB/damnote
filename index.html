@@ -524,7 +524,7 @@ body.locked .toast{z-index:220}
     <div id="chips"></div>
     <div id="banner"></div>
     <div class="grid" id="shelf"></div>
-    <footer class="credit"><a href="https://x.com/loveabunny722" target="_blank" rel="noopener">made by 🐰 BUNNYLATTE(@loveabunny722)</a></footer>
+    <footer class="credit"><a href="https://github.com/ssdam-lab" target="_blank" rel="noopener">made by 🐰 SSDAM-LAB</a></footer>
   </main>
 </div>
 
@@ -1667,7 +1667,7 @@ const pct = px => (px / (paper.clientWidth || 794) * 100).toFixed(2) + '%';
 const FINE = matchMedia('(pointer:fine)').matches;
 const IS_IOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 const IS_STANDALONE = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
-const APP_VERSION = '2.3';
+const APP_VERSION = '2.3.1';
 const CHANGELOG = [
   { v: '2.3', d: '11월 9일', items: ['🧹 메뉴 정리: 「🛟 사용자 지원」과 「⚙️ 설정」 두 개로 묶었어요'] },
   { v: '2.2', d: '11월 9일', items: ['📲 기기 연결 보완: 집 공유기·LTE에서도 연결되도록 중계 서버 추가', '🔒 연결할 때 두 기기에 같은 그림 3개가 뜨면 「맞아요」를 눌러 확인해요'] },
@@ -2804,10 +2804,9 @@ function feedbackDialog() {
       done();
     };
     b.append(el('h3', { text: '💬 의견 보내기' }), el('p', { text: '써보면서 불편했던 점이나 갖고 싶은 기능을 알려주세요. 다음 업데이트에 담아볼게요.' }), fk, ta,
-      el('div', { class: 'tip', style: 'margin-top:10px;font-size:12.5px', text: '📮 「의견함으로 보내기」는 구글 계정으로 로그인한 뒤 제출할 수 있어요. 악성 의견 방지를 위해 이메일이 함께 기록되고, 다른 용도로는 쓰지 않아요. 로그인이 싫다면 X DM으로 보내주세요.' }),
+      el('div', { class: 'tip', style: 'margin-top:10px;font-size:12.5px', text: '📮 「의견함으로 보내기」는 구글 계정으로 로그인한 뒤 제출할 수 있어요. 악성 의견 방지를 위해 이메일이 함께 기록되고, 다른 용도로는 쓰지 않아요.' }),
       el('div', { class: 'row', style: 'flex-wrap:wrap' },
         el('button', { class: 'btn ghost', text: '취소', onclick: () => done() }),
-        el('button', { class: 'btn ghost', text: '𝕏 DM으로 보내기', onclick: toX }),
         el('button', { class: 'btn', text: '📮 의견함으로 보내기', onclick: toForm })));
     setTimeout(() => ta.focus(), 50);
   });
@@ -2841,7 +2840,7 @@ function supportSheet() {
     { icon: '🎉', title: '업데이트 소식', desc: `지금 버전 v${APP_VERSION} · 바뀐 점 보기`, badge: unseen ? 'NEW' : null, go: () => { S.meta.seenVersion = APP_VERSION; saveMeta(); renderLib(); changelogDialog(); } },
     { icon: '❓', title: '사용 안내', desc: '처음 화면 안내 다시 보기 · 사용법 메모 받기', go: onboarding },
     { icon: '💬', title: '의견 보내기', desc: '불편한 점 · 원하는 기능 · 오류 신고', go: feedbackDialog },
-  ], 'made by 🐰 BUNNYLATTE(@loveabunny722)');
+  ], 'made by 🐰 SSDAM-LAB');
 }
 function settingsSheet() {
   const last = S.meta.lastBackup ? Math.floor((Date.now() - S.meta.lastBackup) / 864e5) : null;
