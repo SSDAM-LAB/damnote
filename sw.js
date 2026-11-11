@@ -1,5 +1,5 @@
 // 담노트 DAM:NOTE 오프라인 캐시
-const VERSION = 'memo-seojae-v2.5.1';
+const VERSION = 'memo-seojae-v2.6';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon-maskable.png'];
 const CDN = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com', 'cdn.jsdelivr.net'];
 
@@ -17,6 +17,12 @@ self.addEventListener('fetch', e => {
   if (req.mode === 'navigate' || (url.origin === location.origin && url.pathname.endsWith('/index.html'))) {
     e.respondWith(fetch(req).then(r => { const cp = r.clone(); caches.open(VERSION).then(c => c.put('./index.html', cp)); return r; })
       .catch(() => caches.match('./index.html')));
+    return;
+  }
+  // 공지사항: 최신 우선, 인터넷이 없으면 마지막으로 받은 것
+  if (url.origin === location.origin && url.pathname.endsWith('/notices.json')) {
+    e.respondWith(fetch(req).then(r => { if (r.ok) { const cp = r.clone(); caches.open(VERSION).then(c => c.put(url.pathname, cp)); } return r; })
+      .catch(() => caches.match(url.pathname)));
     return;
   }
   // 글꼴·라이브러리·아이콘: 저장된 것 우선
